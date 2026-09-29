@@ -60,7 +60,7 @@ class GameSummary(BaseModel):
     player1_score: int
     player2_score: int
     ties: int
-    winner: str
+    winner: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -74,7 +74,7 @@ class GameDetailResponse(BaseModel):
     player1_score: int
     player2_score: int
     ties: int
-    winner: str
+    winner: Optional[str] = None
     created_at: datetime
     rounds: List[RoundResponse]
 
