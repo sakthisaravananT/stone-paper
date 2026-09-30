@@ -225,3 +225,12 @@ powershell
 npm run dev
 You will see output indicating the app is live at:
 Frontend App: http://localhost:5173
+
+---
+
+## 🌐 Production Cloud Deployment (AWS EC2 & RDS)
+
+For full step-by-step production deployment using **AWS EC2 (Ubuntu 22.04 LTS)**, **AWS RDS (MySQL 8.0)**, **Nginx reverse proxy**, and **Systemd process management** (along with a full engineering log of issues faced and resolutions), refer to:
+
+👉 **[AWS EC2 & RDS Manual Deployment Guide & Troubleshooting Report](./MANUAL_DEPLOYMENT_AND_ISSUES.md)**
+
