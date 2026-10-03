@@ -24,6 +24,8 @@
     - [Issue 5: CORS Errors and Port 8000 Exposure](#issue-5-cors-errors-and-port-8000-exposure)
     - [Issue 6: SSH Session Disconnect Kills Backend Process](#issue-6-ssh-session-disconnect-kills-backend-process)
     - [Issue 7: MySQL Idle Connection Dropping (MySQL Server Has Gone Away)](#issue-7-mysql-idle-connection-dropping-mysql-server-has-gone-away)
+11. [Summary of 5 Core Deployment Problems & Fixes](#11-summary-of-5-core-deployment-problems--fixes)
+12. [Game State Persistence & Refresh Approach](#12-game-state-persistence--refresh-approach)
 
 ---
 
@@ -511,3 +513,40 @@ During the manual deployment on physical AWS EC2 and RDS instances, multiple inf
 | **Connect to RDS MySQL** | `mysql -h <rds-endpoint> -u admin -p -D stone_paper_scissors` |
 
 ---
+
+## 11. Summary of 5 Core Deployment Problems & Fixes
+
+Below is a concise breakdown of the five primary deployment challenges faced and how each was resolved:
+
+1. **Problem: AWS RDS Connection Timeout on Port 3306**
+   - **Fix**: Added an inbound firewall rule to the RDS Security Group permitting TCP traffic on port 3306 exclusively from the EC2 Security Group ID (`sg-xxxxxxxx`), keeping the database completely private from public internet traffic.
+
+2. **Problem: MySQL 8 Authentication Plugin Incompatibility (`caching_sha2_password`)**
+   - **Fix**: Installed and pinned the `cryptography` library in the Python virtual environment so `pymysql` can execute the RSA key exchange required by MySQL 8.0's default authentication scheme.
+
+3. **Problem: Vite Build Process Killed by Linux Kernel (Out-of-Memory / Exit Code 137)**
+   - **Fix**: Allocated, formatted, and mounted a 2 GB Linux swap space (`/swapfile`) on EC2 root storage, providing the virtual memory buffer needed for Node.js rollup compilation on a 1 GB `t2.micro` instance.
+
+4. **Problem: React Router SPA 404 Not Found on Browser Page Refresh**
+   - **Fix**: Configured the Nginx server location block with `try_files $uri $uri/ /index.html;`, ensuring any client-side route request falls back to `index.html` for client-side routing rather than triggering an Nginx file lookup 404.
+
+5. **Problem: CORS Errors and Direct Port 8000 Exposure**
+   - **Fix**: Configured Nginx as a reverse proxy forwarding `/api/` traffic internally to `http://127.0.0.1:8000/api/` on localhost and removed public exposure of port 8000, ensuring unified single-domain origin delivery on port 80 with zero CORS overhead.
+
+---
+
+## 12. Game State Persistence & Refresh Approach
+
+### Why This Refresh Approach Was Chosen:
+
+1. **Database as the Single Source of Truth**:
+   Every completed round choice and result is immediately persisted in MySQL on the backend upon submission. Rather than keeping fragile client-side assumptions, fetching the match state directly via `GET /api/games/:id` on mount and refresh guarantees the frontend is always 100% consistent with the database.
+
+2. **Elimination of Silent LocalStorage Fallbacks**:
+   `localStorage` caching can fail, become stale, or mask real backend outages by silently saving data locally. Querying the backend directly allows true server errors to be surfaced to the user while preventing client/server state divergence.
+
+3. **Cross-Session and Device Resilience**:
+   Because game identity and progress live on the server indexed by the route parameter `/game/:gameId`, a user can refresh the browser, reopen an accidental tab close, or even switch browsers/devices and seamlessly resume the exact round and score without losing progress.
+
+4. **Clean Deterministic State via `useReducer`**:
+   Using `useReducer` provides predictable, atomic state transitions (`GAME_SYNCED`, `P1_SELECT`, `SUBMIT_ROUND_SUCCESS`, `NEXT_ROUND`). Restoring rounds from the database calculates cumulative scores and moves the player to the next unplayed round (`rounds.length + 1`) at `p1_select` in a single state update, preventing race conditions and duplicate round submissions.
