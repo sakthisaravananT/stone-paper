@@ -234,3 +234,32 @@ For full step-by-step production deployment using **AWS EC2 (Ubuntu 22.04 LTS)**
 
 👉 **[AWS EC2 & RDS Manual Deployment Guide & Troubleshooting Report](./MANUAL_DEPLOYMENT_AND_ISSUES.md)**
 
+---
+
+## 🛠️ Summary of 5 Deployment Problems & How They Were Fixed
+
+1. **AWS RDS Connection Timeout (Port 3306)**:
+   - **Fix**: Added an inbound firewall rule in the RDS Security Group permitting port 3306 exclusively from the EC2 Security Group ID (`sg-xxxxxxxx`), keeping MySQL private from the public internet.
+
+2. **MySQL 8 `caching_sha2_password` Authentication Error**:
+   - **Fix**: Installed and pinned `cryptography` in the Python virtual environment so `pymysql` can perform RSA key exchange required by MySQL 8.0 default authentication.
+
+3. **Vite Build Process Out-of-Memory Crash (Exit Code 137)**:
+   - **Fix**: Allocated and activated a 2 GB Linux swap file (`/swapfile`) on EC2 root storage, providing the memory buffer needed for Node.js rollup compilation on a 1 GB `t2.micro` instance.
+
+4. **React Router SPA 404 on Browser Page Refresh**:
+   - **Fix**: Added `try_files $uri $uri/ /index.html;` to the Nginx location block, ensuring unmatched route requests fallback to `index.html` for client-side routing.
+
+5. **CORS Errors and Direct Port 8000 Exposure**:
+   - **Fix**: Configured Nginx as a reverse proxy routing `/api/` traffic to `http://127.0.0.1:8000/api/` internally and closed external port 8000 access, serving frontend and API under a unified port 80 origin.
+
+---
+
+## 🔄 Refresh Approach & Architectural Rationale
+
+### Why This Refresh Approach Was Chosen:
+- **Database as Single Source of Truth**: All submitted rounds and winners are committed in MySQL upon submission. Querying `GET /api/games/:id` on mount or reload guarantees the frontend strictly reflects verified database records.
+- **No Fragile LocalStorage Fallback**: Eliminates stale browser caches, storage limits, and silent client-side mocking when the backend fails, ensuring server errors are properly surfaced to the user.
+- **Cross-Session Persistence**: Because match progress is mapped to the URL route (`/game/:gameId`), users can refresh the page, reopen an accidentally closed tab, or switch devices without losing score or round progress.
+- **Atomic `useReducer` Resumption**: Hydrating the state atomically transitions the UI directly to the next unplayed round (`rounds.length + 1`) at `p1_select` with accurate cumulative scores, preventing duplicate submissions.
+
