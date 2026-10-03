@@ -75,6 +75,7 @@ class GameDetailResponse(BaseModel):
     player2_score: int
     ties: int
     winner: Optional[str] = None
+    is_completed: Optional[int] = 0
     created_at: datetime
     rounds: List[RoundResponse]
 
